@@ -1,0 +1,77 @@
+---
+title: "Practical Machine Learning Project"
+author: "meherd"
+date: "March 30, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overview
+##Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+##In this project, our goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+#Load the Data
+```{r}
+##load libraries
+library(caret)
+##Read the training and testing dataset and replace missing values by NA
+trainingDataset<-read.csv("/Users/meher/Desktop/Coursera/data/pml-training.csv",header = TRUE,na.strings = c("NA","",'#DIV/0!'))
+testingDataset<-read.csv("/Users/meher/Desktop/Coursera/data/pml-testing.csv",header = TRUE,na.strings = c("NA","",'#DIV/0!'))
+dim(trainingDataset)
+dim(testingDataset)
+```
+#Cleaning the Data
+```{r}
+## Remove NA's from the data set
+trainingDataset <- trainingDataset[,(colSums(is.na(trainingDataset)) == 0)]
+testingDataset <- testingDataset[,(colSums(is.na(testingDataset)))==0]
+## removing the nearZeroVar
+nzv<-nearZeroVar(trainingDataset,saveMetrics = TRUE)
+trainingDataset<- trainingDataset[,nzv$nzv==FALSE]
+##Removing unwanted columns, as we need data from accelerometers on the belt, forearm, arm, and dumbell
+trainingDataset <- subset(trainingDataset, select=-c(X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp))
+```
+# Split training data set into "train" and "test/validation" 
+```{r}
+inTrain<-createDataPartition(y=trainingDataset$classe, p=0.75, list=FALSE)
+training<-trainingDataset[inTrain,]
+validation<-trainingDataset[-inTrain,]
+```
+#Model:Random Forest Model
+```{r}
+library(randomForest)
+set.seed(12345)
+tr_ctrl <- trainControl(method = "cv", number = 5, allowParallel = TRUE)
+modFitrf<-train(classe~., data=training, method="rf", prof = TRUE, trControl = tr_ctrl)
+modFitrf
+```
+#Cross Validation Testing and Out-of-Sample Error Estimate
+##Apllying the training model on validation database, to check its accuracy.
+```{r}
+##Accuracy and Estimated out of sample error
+crossValidRF <- predict(modFitrf, validation)
+confusionMatrix(validation$classe, crossValidRF)
+```
+## Plot the model
+```{r echo=TRUE}
+quartz()
+plot(modFitrf, ylim = c(0.9, 1))
+```
+
+
+#Final Model 
+```{r}
+##Finalmodel
+modFitrf$finalModel
+```
+#Result: Accuracy is 99.9% and out of sample error is 0.19%
+
+##Prediction:Predict on the test data set for 20 test cases for quiz.
+```{r}
+prediction <- as.character(predict(modFitrf, testingDataset))
+prediction
+```
+
